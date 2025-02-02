@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pokedex_MateuCarbonell</title>
     <style>
-        #loading-message{
-            display: none;
-        }
+      
     </style>
 </head>
 
@@ -18,7 +16,9 @@
         <input type="text" placeholder="buscar..." id="search">
         <button id="mostrar-todos">Mostrar todos</button>
         <div id="loading-message">Cargando...</div>
-
+        <label for="type">Buscar por Tipo</label>
+        <input type="text" placeholder="Tipo (ej. fire)" id="type">
+        <button id="search-type">Buscar Tipo</button>
     </div>
     <div id="pokedex"></div>
     <script src="script.js"></script>
