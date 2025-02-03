@@ -1,129 +1,126 @@
-const URL = "https://pokeapi.co/api/v2/pokemon?limit=1000"; // Pedimos los primeros 100 Pokémon
+const URL = "https://pokeapi.co/api/v2/pokemon?limit=5000";
 const searchInput = document.getElementById("search");
-const searchRegionInput = document.getElementById("searchRegion");
+const typeInput = document.getElementById("type");
 const pokedexContainer = document.getElementById("pokedex");
 
+// Función para mostrar el loading
+function showLoading() {
+    pokedexContainer.innerHTML = `
+        <div class="d-flex flex-column align-items-center">
+            <p>Loading...</p>
+            <div class="spinner-border" role="status">
+                <span class="sr-only">Cargando...</span>
+            </div>
+        </div>
+    `;
+}
+
+// Función para ocultar el loading
+function hideLoading() {
+    pokedexContainer.innerHTML = "";
+}
+
 // Función para obtener y mostrar todos los Pokémon
-function searchAllPokemons() {
-    fetch(URL)
-        .then(response => response.json())
-        .then(data => {
-            pokedexContainer.innerHTML = ""; // Limpiar el contenedor
+async function searchAllPokemons() {
+    showLoading();
+    const response = await fetch(URL);
+    const data = await response.json();
 
-            data.results.forEach(pokemon => {
-                // Llamar a cada Pokémon para obtener los detalles
-                fetch(pokemon.url)
-                    .then(response => response.json())
-                    .then(data => {
-                        // Mostrar detalles de cada Pokémon
-                        const pokemonItem = document.createElement("div");
-                        pokemonItem.innerHTML = `
-                            <h2>${data.name.toUpperCase()}</h2>
-                            <img src="${data.sprites.front_default}" alt="${data.name}">
-                            <p>Número: ${data.id}</p>
-                            <p>Altura: ${data.height / 10} m</p>
-                            <p>Peso: ${data.weight / 10} kg</p>
-                        `;
-                        pokedexContainer.appendChild(pokemonItem);
-                    })
-                   
-            });
-        })
-       
+    // Obtener todos los Pokémon y ordenarlos por ID
+    const pokemonList = await Promise.all(data.results.map(async (pokemon) => {
+        const pokemonResponse = await fetch(pokemon.url);
+        return pokemonResponse.json();
+    }));
+    hideLoading();
+
+    // Ordenar por ID
+    pokemonList.sort((a, b) => a.id - b.id);
+
+    // Mostrar los Pokémon ordenados
+    pokemonList.forEach(pokemonData => {
+        const pokemonItem = document.createElement("div");
+        // la altura y el peso estan divididos por 10 para obtener los valores en metros y kilogramos ya que vienen en decímetros y hectogramos
+        pokemonItem.innerHTML = `
+            <h2>${pokemonData.name.toUpperCase()}</h2>
+            <img src="${pokemonData.sprites.front_default}" alt="${pokemonData.name}">
+            <p>Número: ${pokemonData.id}</p>
+            <p>Altura: ${pokemonData.height / 10} m</p> 
+            <p>Peso: ${pokemonData.weight / 10} kg</p>
+        `;
+        pokedexContainer.appendChild(pokemonItem);
+    });
 }
 
-// Función para buscar Pokémon que comienzan con las letras ingresadas en el input
-function searchPokemonDynamically() {
-    const searchedPokemon = searchInput.value.toLowerCase(); // Convertir a minúsculas
+// Función para buscar Pokémon (por nombre o tipo)
+async function searchPokemonDynamically(filterByType = false) {
+    let searchValue;
+    if (filterByType) {
+        searchValue = typeInput.value.toLowerCase();
+    } else {
+        searchValue = searchInput.value.toLowerCase();
+    }
 
-    if (!searchedPokemon) {
-        pokedexContainer.innerHTML = "<p>❌.</p>";
+    if (!searchValue) {
+        // Si no hay texto, mostrar todos los Pokémon ordenados por ID
+        searchAllPokemons();
         return;
     }
 
-    fetch(URL)
-        .then(response => response.json())
-        .then(data => {
-            pokedexContainer.innerHTML = ""; // Limpiar el contenedor
+    showLoading();
+    const response = await fetch(URL);
+    const data = await response.json();
 
-            let coincide = false;
+    let coincide = false;
 
-            // Iterar por todos los resultados y mostrar solo los que coincidan
-            data.results.forEach(pokemon => {
-                if (pokemon.name.toLowerCase().startsWith(searchedPokemon)) {
-                    coincide = true;
+    // Obtener todos los Pokémon y ordenarlos por ID
+    const pokemonList = await Promise.all(data.results.map(async (pokemon) => {
+        const pokemonResponse = await fetch(pokemon.url);
+        return pokemonResponse.json();
+    }));
+    hideLoading();
 
-                    // Llamar a cada Pokémon para obtener los detalles
-                    fetch(pokemon.url)
-                        .then(response => response.json())
-                        .then(data => {
-                            const pokemonItem = document.createElement("div");
-                            pokemonItem.innerHTML = `
-                                <h2>${data.name.toUpperCase()}</h2>
-                                <img src="${data.sprites.front_default}" alt="${data.name}">
-                                <p>Número: ${data.id}</p>
-                                <p>Altura: ${data.height / 10} m</p>
-                                <p>Peso: ${data.weight / 10} kg</p>
-                            `;
-                            pokedexContainer.appendChild(pokemonItem);
-                        })
-                        
+    // Ordenar por ID
+    pokemonList.sort((a, b) => a.id - b.id);
+
+    // Filtrar y mostrar los Pokémon
+    for (const pokemonData of pokemonList) {
+        let matchesSearch = false;
+        if (filterByType) {
+            // Filtramos por tipo
+            for (let i = 0; i < pokemonData.types.length; i++) {
+                if (pokemonData.types[i].type.name.toLowerCase() === searchValue) {
+                    matchesSearch = true;
+                    break;
                 }
-            });
-
-            if (!coincide) {
-                pokedexContainer.innerHTML = "<p>❌ No se encontraron Pokémon que coincidan.</p>";
             }
-        })
-}
+        } else {
+            // Filtramos por nombre
+            matchesSearch = pokemonData.name.toLowerCase().startsWith(searchValue);
+        }
 
-function searchPokemonByType() {
-    const typeInput = document.getElementById("type");  // El input para ingresar el tipo
-    const searchedType = typeInput.value.toLowerCase(); // Convertir a minúsculas
-
-    if (!searchedType) {
-        pokedexContainer.innerHTML = "<p>❌ Por favor, ingresa un tipo para buscar.</p>";
-        return;
+        if (matchesSearch) {
+            coincide = true;
+            const pokemonItem = document.createElement("div");
+            pokemonItem.innerHTML = `
+                <h2>${pokemonData.name.toUpperCase()}</h2>
+                <img src="${pokemonData.sprites.front_default}" alt="${pokemonData.name}">
+                <p>Número: ${pokemonData.id}</p>
+                <p>Altura: ${pokemonData.height / 10} m</p>
+                <p>Peso: ${pokemonData.weight / 10} kg</p>
+            `;
+            pokedexContainer.appendChild(pokemonItem);
+        }
     }
 
-    fetch(URL)
-        .then(response => response.json())
-        .then(data => {
-            pokedexContainer.innerHTML = ""; // Limpiar el contenedor
-            let found = false;
-
-            data.results.forEach(pokemon => {
-                fetch(pokemon.url)
-                    .then(response => response.json())
-                    .then(data => {
-                        // Verificamos si el Pokémon tiene el tipo ingresado
-                        for (let i = 0; i < data.types.length; i++) {
-                            if (data.types[i].type.name.toLowerCase() === searchedType) {
-                                found = true;
-
-                                // Mostrar Pokémon
-                                const pokemonItem = document.createElement("div");
-                                pokemonItem.innerHTML = `
-                                    <h2>${data.name.toUpperCase()}</h2>
-                                    <img src="${data.sprites.front_default}" alt="${data.name}">
-                                    <p>Número: ${data.id}</p>
-                                    <p>Altura: ${data.height / 10} m</p>
-                                    <p>Peso: ${data.weight / 10} kg</p>
-                                `;
-                                pokedexContainer.appendChild(pokemonItem);
-                                break; // Salir del bucle si ya encontramos el tipo
-                            }
-                        }
-                    })
-            });
-
-            if (!found) {
-                pokedexContainer.innerHTML = "<p>❌ No se encontraron Pokémon de ese tipo.</p>";
-            }
-        })
+    if (!coincide) {
+        pokedexContainer.innerHTML = "<p>❌ No se encontraron Pokémon que coincidan.</p>";
+    }
 }
 
-searchInput.addEventListener("input", searchPokemonDynamically);
+// Event listeners
+searchInput.addEventListener("input", () => searchPokemonDynamically(false));
 document.getElementById("mostrar-todos").addEventListener("click", searchAllPokemons);
-document.getElementById("search-type").addEventListener("click", searchPokemonByType);
+document.getElementById("search-type").addEventListener("click", () => searchPokemonDynamically(true));
 
+// Cargar todos los Pokémon ordenados al iniciar la página
+searchAllPokemons();
